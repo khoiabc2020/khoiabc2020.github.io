@@ -1,0 +1,34 @@
+Starting extraction with answers...
+Processing: Chương 1.pdf
+  Error extracting text from Chương 1.pdf
+Processing: chương 2.pdf
+  Found 120 answers
+  Found 120 questions (120 with answers)
+Processing: chương 3.pdf
+  Found 150 answers
+  Found 149 questions (149 with answers)
+Processing: chương 4 .pdf
+  Found 150 answers
+  Found 150 questions (150 with answers)
+Processing: chương 5.pdf
+  Found 150 answers
+  Found 148 questions (148 with answers)
+Processing: chương 6.pdf
+  Found 150 answers
+  Found 150 questions (150 with answers)
+Processing: CHƯƠNG 7.pdf
+  Found 150 answers
+  Found 150 questions (150 with answers)
+
+Total questions: 867
+Questions with answers: 867
+
+Created data.js with 867 questions
+
+Statistics by chapter:
+  Chương 2: 120 questions (120 with answers)
+  Chương 3: 149 questions (149 with answers)
+  Chương 4: 150 questions (150 with answers)
+  Chương 5: 148 questions (148 with answers)
+  Chương 6: 150 questions (150 with answers)
+  Chương 7: 150 questions (150 with answers)

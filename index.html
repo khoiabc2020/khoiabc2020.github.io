@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thi Trắc Nghiệm - 60 Câu Hỏi</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Settings Panel -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-content">
+            <h3>⚙️ Cài đặt</h3>
+            <div class="setting-item">
+                <label class="switch">
+                    <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
+                    <span class="slider"></span>
+                </label>
+                <span>Chế độ tối</span>
+            </div>
+            <div class="setting-item">
+                <label class="switch">
+                    <input type="checkbox" id="soundToggle" checked>
+                    <span class="slider"></span>
+                </label>
+                <span>Âm thanh</span>
+            </div>
+            <button class="btn btn-secondary" onclick="toggleSettings()" style="margin-top: 20px; width: 100%;">Đóng</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Control Bar -->
+        <div class="control-bar">
+            <button class="control-btn" onclick="toggleSettings()" title="Cài đặt">⚙️</button>
+            <button class="control-btn" onclick="showHistory()" title="Lịch sử thi">📊</button>
+            <button class="control-btn" onclick="showHelp()" title="Hướng dẫn">❓</button>
+        </div>
+
+        <div class="header">
+            <h1>📝 Thi Trắc Nghiệm</h1>
+            <p>60 Câu Hỏi - 50 Phút</p>
+        </div>
+
+        <div class="timer-container">
+            <div class="timer" id="timer">⏱️ <span id="timeDisplay">50:00</span></div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+            <div class="question-counter">
+                Câu <span id="currentQuestion">1</span> / <span id="totalQuestions">60</span>
+            </div>
+            <button class="btn-home" id="btnHome" onclick="goHome()" title="Về trang chủ" style="display: none;">
+                🏠 Trang chủ
+            </button>
+        </div>
+
+        <div class="content" id="quizContent">
+            <!-- Left: Question -->
+            <div class="content-left">
+                <div class="question-card" id="questionCard">
+                    <!-- Question will be loaded here -->
+                </div>
+                
+                <div class="navigation">
+                    <button class="btn btn-secondary" id="prevBtn" onclick="previousQuestion()">← Trước</button>
+                    <button class="btn btn-warning" id="markBtn" onclick="toggleMark()">🔖 Đánh dấu</button>
+                    <button class="btn btn-success" id="submitBtn" onclick="showSubmitModal()">✓ Nộp bài</button>
+                    <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">Sau →</button>
+                </div>
+            </div>
+
+            <!-- Right: Question List -->
+            <div class="content-right">
+                <div class="question-list-container">
+                    <div class="question-list-header">
+                        <span class="question-list-title">Danh sách câu hỏi</span>
+                        <button class="btn-new-exam" onclick="createNewExam()" title="Tạo đề mới">🔄</button>
+                    </div>
+                    
+                    <div class="question-filter">
+                        <button class="filter-btn active" onclick="filterQuestions('all')">Tất cả</button>
+                        <button class="filter-btn" onclick="filterQuestions('answered')">Đã trả lời</button>
+                        <button class="filter-btn" onclick="filterQuestions('unanswered')">Chưa trả lời</button>
+                        <button class="filter-btn" onclick="filterQuestions('marked')">Đánh dấu</button>
+                    </div>
+
+                    <div class="question-list" id="questionList">
+                        <!-- Question navigation buttons -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="result-container" id="resultContainer"></div>
+        <div class="history-container" id="historyContainer"></div>
+    </div>
+
+    <div class="submit-modal" id="submitModal">
+        <div class="modal-content">
+            <h2>Xác nhận nộp bài</h2>
+            <p id="submitWarning">Bạn có chắc chắn muốn nộp bài không?</p>
+            <div class="btn-group">
+                <button class="btn btn-secondary" onclick="hideSubmitModal()">Hủy</button>
+                <button class="btn btn-success" onclick="submitQuiz()">Xác nhận nộp bài</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script>
+        // Global variables
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let answers = {};
+        let markedQuestions = new Set();
+        let timeLeft = 50 * 60;
+        let timerInterval = null;
+        let quizSubmitted = false;
+        let soundEnabled = true;
+        let currentFilter = 'all';
+        let startTime = null;
+        let usedQuestionSets = new Set(); // Lưu các bộ đề đã dùng
+
+        // Sound effects
+        const sounds = {
+            click: () => playSound(800, 50),
+            correct: () => playSound(1000, 100),
+            wrong: () => playSound(400, 100),
+            submit: () => playSound(600, 200)
+        };
+
+        function playSound(frequency, duration) {
+            if (!soundEnabled || !document.getElementById('soundToggle').checked) return;
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration / 1000);
+            } catch (e) {}
+        }
+
+        // Dark mode
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+            sounds.click();
+        }
+
+        function loadDarkMode() {
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            if (darkMode) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('darkModeToggle').checked = true;
+            }
+        }
+
+        function toggleSettings() {
+            document.getElementById('settingsPanel').classList.toggle('show');
+            sounds.click();
+        }
+
+        function showHelp() {
+            alert(`🎓 HƯỚNG DẪN SỬ DỤNG
+
+⌨️ Phím tắt:
+• Mũi tên ←/→: Chuyển câu hỏi
+• Phím 1-4: Chọn đáp án A-D
+• Phím M: Đánh dấu câu hỏi
+
+✨ Tính năng:
+• Đánh dấu câu hỏi để xem lại
+• Lọc câu hỏi theo trạng thái
+• Tạo đề mới không trùng lặp (🔄)
+• Lưu lịch sử các lần thi
+• Chế độ tối bảo vệ mắt
+
+⏱️ Thời gian: 50 phút
+🎯 Số câu: 60 câu
+📊 Chấm điểm: Tự động`);
+        }
+
+        // Generate unique exam ID
+        function generateExamId(questions) {
+            return questions.map(q => q.id).sort().join(',');
+        }
+
+        // Initialize quiz
+        function initQuiz(isNewExam = false) {
+            if (isNewExam && !confirm('Bạn có muốn tạo đề thi mới? Đề hiện tại sẽ bị hủy.')) {
+                return;
+            }
+
+            startTime = new Date();
+            const questionsPerChapter = 10;
+            const maxAttempts = 100; // Giới hạn số lần thử
+            let attempts = 0;
+            let foundUniqueSet = false;
+            
+            while (!foundUniqueSet && attempts < maxAttempts) {
+                attempts++;
+                currentQuestions = [];
+                const chapters = ['Chương 2', 'Chương 3', 'Chương 4', 'Chương 5', 'Chương 6', 'Chương 7'];
+                
+                chapters.forEach((chapter) => {
+                    const chapterQuestions = quizData.filter(q => q.chapter === chapter && q.correctAnswer);
+                    const shuffled = [...chapterQuestions].sort(() => Math.random() - 0.5);
+                    const selected = shuffled.slice(0, Math.min(questionsPerChapter, chapterQuestions.length));
+                    currentQuestions.push(...selected);
+                });
+                
+                if (currentQuestions.length < 60) {
+                    const selectedIds = new Set(currentQuestions.map(q => q.id));
+                    const allAvailable = quizData.filter(q => !selectedIds.has(q.id) && q.correctAnswer);
+                    const needed = 60 - currentQuestions.length;
+                    const additional = allAvailable.sort(() => Math.random() - 0.5).slice(0, needed);
+                    currentQuestions.push(...additional);
+                }
+                
+                currentQuestions = currentQuestions.sort(() => Math.random() - 0.5).slice(0, 60);
+                
+                // Check if this set is unique
+                const examId = generateExamId(currentQuestions);
+                if (!usedQuestionSets.has(examId)) {
+                    usedQuestionSets.add(examId);
+                    foundUniqueSet = true;
+                    
+                    // Save to localStorage (keep last 50 sets)
+                    let savedSets = JSON.parse(localStorage.getItem('usedExamSets') || '[]');
+                    savedSets.push(examId);
+                    if (savedSets.length > 50) savedSets = savedSets.slice(-50);
+                    localStorage.setItem('usedExamSets', JSON.stringify(savedSets));
+                }
+            }
+            
+            if (!foundUniqueSet) {
+                alert('Đã hết đề mới! Hệ thống sẽ reset danh sách đề đã dùng.');
+                usedQuestionSets.clear();
+                localStorage.removeItem('usedExamSets');
+                return initQuiz(false);
+            }
+            
+            // Reset states
+            answers = {};
+            markedQuestions.clear();
+            currentQuestionIndex = 0;
+            quizSubmitted = false;
+            timeLeft = 50 * 60;
+            
+            currentQuestions.forEach((q, index) => {
+                answers[index] = null;
+            });
+            
+            // Update UI
+            document.getElementById('totalQuestions').textContent = currentQuestions.length;
+            document.getElementById('quizContent').style.display = 'grid';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('historyContainer').style.display = 'none';
+            document.getElementById('btnHome').style.display = 'none';
+            
+            updateQuestionList();
+            loadQuestion(0);
+            
+            if (timerInterval) clearInterval(timerInterval);
+            startTimer();
+            
+            if (isNewExam) {
+                sounds.click();
+                showNotification(`✓ Đã tạo đề mới! (Lần thử: ${attempts})`);
+            }
+        }
+
+        function createNewExam() {
+            initQuiz(true);
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 100px;
+                right: 20px;
+                background: var(--success-color);
+                color: white;
+                padding: 15px 25px;
+                border-radius: 10px;
+                box-shadow: var(--shadow-xl);
+                z-index: 10000;
+                animation: slideInRight 0.3s ease;
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                if (quizSubmitted) {
+                    clearInterval(timerInterval);
+                    return;
+                }
+                
+                timeLeft--;
+                updateTimer();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    submitQuiz();
+                }
+                
+                if (timeLeft === 300 || timeLeft === 60) {
+                    sounds.wrong();
+                }
+            }, 1000);
+        }
+
+        function updateTimer() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timeDisplay').textContent = timeString;
+            
+            const timer = document.getElementById('timer');
+            timer.classList.toggle('warning', timeLeft <= 300 && timeLeft > 60);
+            timer.classList.toggle('critical', timeLeft <= 60);
+            
+            const totalTime = 50 * 60;
+            const progress = ((totalTime - timeLeft) / totalTime) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function loadQuestion(index) {
+            if (index < 0 || index >= currentQuestions.length) return;
+            
+            currentQuestionIndex = index;
+            const question = currentQuestions[index];
+            const isMarked = markedQuestions.has(index);
+            
+            const questionCard = document.getElementById('questionCard');
+            questionCard.innerHTML = `
+                <div class="question-header">
+                    <span class="question-number">${isMarked ? '🔖 ' : ''}Câu ${index + 1}</span>
+                    <span class="question-chapter">${question.chapter}</span>
+                </div>
+                <div class="question-text">${question.question}</div>
+                <div class="options">
+                    ${question.options.map((opt) => `
+                        <div class="option ${answers[index] === opt.label ? 'selected' : ''}" 
+                             onclick="selectAnswer('${opt.label}')">
+                            <div class="option-label">${opt.label}</div>
+                            <div class="option-text">${opt.text}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            document.getElementById('prevBtn').disabled = index === 0;
+            document.getElementById('nextBtn').disabled = index === currentQuestions.length - 1;
+            document.getElementById('currentQuestion').textContent = index + 1;
+            document.getElementById('markBtn').textContent = isMarked ? '🔖 Bỏ đánh dấu' : '🔖 Đánh dấu';
+            
+            updateQuestionList();
+        }
+
+        function selectAnswer(answer) {
+            if (quizSubmitted) return;
+            answers[currentQuestionIndex] = answer;
+            sounds.click();
+            loadQuestion(currentQuestionIndex);
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                loadQuestion(currentQuestionIndex + 1);
+                sounds.click();
+            }
+        }
+
+        function previousQuestion() {
+            if (currentQuestionIndex > 0) {
+                loadQuestion(currentQuestionIndex - 1);
+                sounds.click();
+            }
+        }
+
+        function toggleMark() {
+            if (markedQuestions.has(currentQuestionIndex)) {
+                markedQuestions.delete(currentQuestionIndex);
+            } else {
+                markedQuestions.add(currentQuestionIndex);
+            }
+            sounds.click();
+            loadQuestion(currentQuestionIndex);
+        }
+
+        function filterQuestions(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateQuestionList();
+            sounds.click();
+        }
+
+        function updateQuestionList() {
+            const questionList = document.getElementById('questionList');
+            questionList.innerHTML = currentQuestions.map((q, index) => {
+                const isAnswered = answers[index] !== null;
+                const isCurrent = index === currentQuestionIndex;
+                const isMarked = markedQuestions.has(index);
+                
+                let show = true;
+                if (currentFilter === 'answered') show = isAnswered;
+                if (currentFilter === 'unanswered') show = !isAnswered;
+                if (currentFilter === 'marked') show = isMarked;
+                
+                if (!show) return '';
+                
+                return `
+                    <button class="question-btn ${isAnswered ? 'answered' : ''} ${isCurrent ? 'current' : ''} ${isMarked ? 'marked' : ''}"
+                            onclick="loadQuestion(${index})"
+                            title="${isMarked ? 'Đã đánh dấu' : 'Câu ' + (index + 1)}">
+                        ${index + 1}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function showSubmitModal() {
+            const answeredCount = Object.values(answers).filter(a => a !== null).length;
+            const unansweredCount = currentQuestions.length - answeredCount;
+            
+            // Tính điểm nhanh
+            let correctCount = 0;
+            currentQuestions.forEach((q, index) => {
+                const userAnswer = answers[index];
+                if (userAnswer === q.correctAnswer) {
+                    correctCount++;
+                }
+            });
+            const estimatedScore = (correctCount / currentQuestions.length * 10).toFixed(1);
+            
+            let warning = `<div style="margin-bottom: 20px;">
+                <div style="font-size: 2em; font-weight: bold; color: var(--primary-color); margin-bottom: 10px;">
+                    Điểm dự kiến: ${estimatedScore}/10
+                </div>
+                <div style="color: var(--text-secondary);">
+                    ${correctCount}/${currentQuestions.length} câu đúng • ${answeredCount - correctCount} câu sai • ${unansweredCount} câu bỏ qua
+                </div>
+            </div>`;
+            
+            warning += 'Bạn có chắc chắn muốn nộp bài không? Sau khi nộp bài, bạn không thể chỉnh sửa.';
+            
+            if (unansweredCount > 0) {
+                warning = `<div style="color: #f59e0b; font-weight: 600; margin-bottom: 15px;">
+                    ⚠️ Bạn còn ${unansweredCount} câu chưa trả lời!
+                </div>` + warning;
+            }
+            
+            document.getElementById('submitWarning').innerHTML = warning;
+            document.getElementById('submitModal').classList.add('show');
+        }
+
+        function hideSubmitModal() {
+            document.getElementById('submitModal').classList.remove('show');
+        }
+
+        function submitQuiz() {
+            quizSubmitted = true;
+            clearInterval(timerInterval);
+            hideSubmitModal();
+            sounds.submit();
+            
+            let correctCount = 0;
+            let incorrectCount = 0;
+            let unansweredCount = 0;
+            
+            // Build detailed results
+            const detailedResults = [];
+            currentQuestions.forEach((q, index) => {
+                const userAnswer = answers[index];
+                const isCorrect = userAnswer === q.correctAnswer;
+                const isUnanswered = userAnswer === null;
+                
+                if (isUnanswered) {
+                    unansweredCount++;
+                } else if (isCorrect) {
+                    correctCount++;
+                } else {
+                    incorrectCount++;
+                }
+                
+                detailedResults.push({
+                    questionNumber: index + 1,
+                    questionId: q.id,
+                    chapter: q.chapter,
+                    question: q.question,
+                    options: q.options,
+                    userAnswer: userAnswer,
+                    correctAnswer: q.correctAnswer,
+                    isCorrect: isCorrect,
+                    isUnanswered: isUnanswered
+                });
+            });
+            
+            const endTime = new Date();
+            const timeUsed = Math.floor((endTime - startTime) / 1000);
+            
+            // Save to history with detailed results
+            const resultData = {
+                date: endTime.toISOString(),
+                score: (correctCount / currentQuestions.length * 10).toFixed(2),
+                correct: correctCount,
+                incorrect: incorrectCount,
+                unanswered: unansweredCount,
+                total: currentQuestions.length,
+                timeUsed: timeUsed,
+                detailedResults: detailedResults
+            };
+            
+            saveToHistory(resultData);
+            
+            // Store current result for export
+            window.currentResult = resultData;
+            
+            document.getElementById('quizContent').style.display = 'none';
+            document.getElementById('btnHome').style.display = 'flex';
+            showResults(correctCount, incorrectCount, unansweredCount);
+        }
+        
+        function goHome() {
+            if (!quizSubmitted || confirm('Bạn có muốn quay lại trang chủ và tạo đề thi mới?')) {
+                document.getElementById('btnHome').style.display = 'none';
+                document.getElementById('resultContainer').style.display = 'none';
+                document.getElementById('historyContainer').style.display = 'none';
+                document.getElementById('quizContent').style.display = 'grid';
+                sounds.click();
+                
+                if (quizSubmitted) {
+                    initQuiz(true);
+                }
+            }
+        }
+
+        function showResults(correctCount, incorrectCount, unansweredCount) {
+            const totalQuestions = currentQuestions.length;
+            const score = (correctCount / totalQuestions * 10).toFixed(2);
+            const percentage = (correctCount / totalQuestions * 100).toFixed(1);
+            
+            const timeUsed = (50 * 60) - timeLeft;
+            const minutesUsed = Math.floor(timeUsed / 60);
+            const secondsUsed = timeUsed % 60;
+            
+            let gradeText = '', gradeEmoji = '';
+            if (score >= 9) { gradeText = 'Xuất sắc'; gradeEmoji = '🏆'; }
+            else if (score >= 8) { gradeText = 'Giỏi'; gradeEmoji = '🌟'; }
+            else if (score >= 6.5) { gradeText = 'Khá'; gradeEmoji = '👍'; }
+            else if (score >= 5) { gradeText = 'Trung bình'; gradeEmoji = '📚'; }
+            else { gradeText = 'Cần cố gắng'; gradeEmoji = '💪'; }
+            
+            const resultContainer = document.getElementById('resultContainer');
+            resultContainer.classList.add('show');
+            resultContainer.innerHTML = `
+                <div class="result-card">
+                    <div class="result-header">
+                        <h2>${gradeEmoji} Kết quả thi</h2>
+                        <div class="result-score">${score}/10</div>
+                        <p style="font-size: 1.5em; color: var(--primary-color); font-weight: 700;">${gradeText}</p>
+                        <p style="font-size: 1.2em; color: var(--text-secondary); font-weight: 600; margin-top: 10px;">
+                            ${percentage}% - ${correctCount}/${totalQuestions} câu đúng
+                        </p>
+                    </div>
+                    
+                    <div class="result-stats">
+                        <div class="stat-item" style="border-color: #10b981;">
+                            <div class="stat-value" style="color: #10b981;">✓ ${correctCount}</div>
+                            <div class="stat-label">Đúng</div>
+                        </div>
+                        <div class="stat-item" style="border-color: #ef4444;">
+                            <div class="stat-value" style="color: #ef4444;">✗ ${incorrectCount}</div>
+                            <div class="stat-label">Sai</div>
+                        </div>
+                        <div class="stat-item" style="border-color: #f59e0b;">
+                            <div class="stat-value" style="color: #f59e0b;">? ${unansweredCount}</div>
+                            <div class="stat-label">Bỏ qua</div>
+                        </div>
+                        <div class="stat-item" style="border-color: #3b82f6;">
+                            <div class="stat-value" style="color: #3b82f6;">⏱ ${minutesUsed}:${secondsUsed.toString().padStart(2, '0')}</div>
+                            <div class="stat-label">Thời gian</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <h3 style="margin-bottom: 25px; font-size: 1.6em; color: var(--text-primary);">📋 Chi tiết bài làm</h3>
+                    <div id="detailedResults">${generateDetailedResults()}</div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="goHome()" style="font-size: 1.1em; padding: 14px 35px;">
+                        🏠 Về trang chủ
+                    </button>
+                    <button class="btn btn-success" onclick="initQuiz(true)" style="font-size: 1.1em; padding: 14px 35px;">
+                        🔄 Làm đề mới
+                    </button>
+                    <button class="btn btn-warning" onclick="exportResult()" style="font-size: 1.1em; padding: 14px 35px;">
+                        💾 Lưu kết quả
+                    </button>
+                    <button class="btn btn-secondary" onclick="showHistory()" style="font-size: 1.1em; padding: 14px 35px;">
+                        📊 Xem lịch sử
+                    </button>
+                </div>
+            `;
+        }
+
+        function generateDetailedResults() {
+            let html = '';
+            currentQuestions.forEach((q, index) => {
+                const userAnswer = answers[index];
+                const isCorrect = userAnswer === q.correctAnswer;
+                const isUnanswered = userAnswer === null;
+                
+                let statusIcon, statusColor;
+                if (isUnanswered) { statusIcon = '⚠️'; statusColor = '#f59e0b'; }
+                else if (isCorrect) { statusIcon = '✅'; statusColor = '#10b981'; }
+                else { statusIcon = '❌'; statusColor = '#ef4444'; }
+                
+                html += `
+                    <div class="result-question" style="background: var(--card-bg); padding: 25px; margin-bottom: 20px; border-radius: 15px; border-left: 5px solid ${statusColor}; box-shadow: var(--shadow-md);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <span style="font-weight: 700; font-size: 1.1em; color: var(--text-primary);">
+                                ${statusIcon} Câu ${index + 1} <span style="font-size: 0.9em; color: var(--text-secondary);">(${q.chapter})</span>
+                            </span>
+                        </div>
+                        <div style="font-size: 1.05em; color: var(--text-primary); margin-bottom: 15px; line-height: 1.6;">${q.question}</div>
+                        <div style="margin-left: 20px;">
+                            ${q.options.map(opt => {
+                                let optionStyle = 'padding: 12px 15px; margin: 8px 0; border-radius: 10px; border: 2px solid var(--border-color); background: var(--option-bg);';
+                                let labelStyle = 'font-weight: 700; margin-right: 10px;';
+                                
+                                if (opt.label === q.correctAnswer) {
+                                    optionStyle += ' background: var(--success-bg); border-color: #10b981;';
+                                    labelStyle += ' color: #10b981;';
+                                }
+                                if (opt.label === userAnswer && !isCorrect && userAnswer !== null) {
+                                    optionStyle += ' background: var(--error-bg); border-color: #ef4444;';
+                                    labelStyle += ' color: #ef4444;';
+                                }
+                                
+                                return `
+                                    <div style="${optionStyle}">
+                                        <span style="${labelStyle}">${opt.label}.</span>
+                                        ${opt.text}
+                                        ${opt.label === q.correctAnswer ? ' <strong style="color: #10b981;">✓ Đáp án đúng</strong>' : ''}
+                                        ${opt.label === userAnswer && !isCorrect && userAnswer !== null ? ' <strong style="color: #ef4444;">✗ Bạn chọn</strong>' : ''}
+                                        ${opt.label === userAnswer && isCorrect ? ' <strong style="color: #10b981;">✓ Bạn chọn</strong>' : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            return html;
+        }
+
+        function saveToHistory(result) {
+            let history = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+            history.unshift(result);
+            if (history.length > 10) history = history.slice(0, 10);
+            localStorage.setItem('quizHistory', JSON.stringify(history));
+        }
+
+        function showHistory() {
+            const history = JSON.parse(localStorage.getItem('quizHistory') || '[]');
+            
+            document.getElementById('quizContent').style.display = 'none';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('btnHome').style.display = 'flex';
+            
+            const historyContainer = document.getElementById('historyContainer');
+            historyContainer.classList.add('show');
+            
+            if (history.length === 0) {
+                historyContainer.innerHTML = `
+                    <div class="result-card" style="text-align: center; padding: 60px 30px;">
+                        <h2 style="color: var(--text-secondary); margin-bottom: 20px;">📊 Lịch sử thi</h2>
+                        <p style="font-size: 1.2em; color: var(--text-secondary);">Chưa có lịch sử thi nào</p>
+                        <button class="btn btn-primary" onclick="location.reload()" style="margin-top: 30px;">Bắt đầu thi</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            let historyHTML = `
+                <div class="result-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                        <h2 style="color: var(--text-primary);">📊 Lịch sử thi</h2>
+                        <button class="btn btn-secondary" onclick="clearHistory()">Xóa lịch sử</button>
+                    </div>
+                    <div class="history-list">
+            `;
+            
+            history.forEach((result) => {
+                const date = new Date(result.date);
+                const dateStr = date.toLocaleDateString('vi-VN');
+                const timeStr = date.toLocaleTimeString('vi-VN');
+                const minutesUsed = Math.floor(result.timeUsed / 60);
+                const secondsUsed = result.timeUsed % 60;
+                
+                historyHTML += `
+                    <div class="history-item">
+                        <div class="history-header">
+                            <span class="history-date">${dateStr} ${timeStr}</span>
+                            <span class="history-score">${result.score}/10</span>
+                        </div>
+                        <div class="history-stats">
+                            <span>✓ ${result.correct} đúng</span>
+                            <span>✗ ${result.incorrect} sai</span>
+                            <span>? ${result.unanswered} bỏ qua</span>
+                            <span>⏱ ${minutesUsed}:${secondsUsed.toString().padStart(2, '0')}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            historyHTML += `
+                    </div>
+                </div>
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="goHome()">🔄 Làm đề mới</button>
+                </div>
+            `;
+            
+            historyContainer.innerHTML = historyHTML;
+        }
+
+        function clearHistory() {
+            if (confirm('Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi?')) {
+                localStorage.removeItem('quizHistory');
+                showHistory();
+                sounds.click();
+            }
+        }
+        
+        function exportResult() {
+            if (!window.currentResult) {
+                alert('Không có kết quả để lưu!');
+                return;
+            }
+            
+            const result = window.currentResult;
+            const date = new Date(result.date);
+            const dateStr = date.toLocaleDateString('vi-VN').replace(/\//g, '-');
+            const timeStr = date.toLocaleTimeString('vi-VN').replace(/:/g, '-');
+            
+            // Create detailed text report
+            let report = `========================================\n`;
+            report += `   KẾT QUẢ THI TRẮC NGHIỆM\n`;
+            report += `========================================\n\n`;
+            report += `Ngày thi: ${date.toLocaleString('vi-VN')}\n`;
+            report += `Điểm số: ${result.score}/10\n`;
+            report += `Tổng số câu: ${result.total}\n`;
+            report += `Số câu đúng: ${result.correct}\n`;
+            report += `Số câu sai: ${result.incorrect}\n`;
+            report += `Số câu bỏ qua: ${result.unanswered}\n`;
+            report += `Thời gian làm bài: ${Math.floor(result.timeUsed / 60)}:${(result.timeUsed % 60).toString().padStart(2, '0')}\n`;
+            report += `\n========================================\n`;
+            report += `   CHI TIẾT BÀI LÀM\n`;
+            report += `========================================\n\n`;
+            
+            result.detailedResults.forEach((q, index) => {
+                const status = q.isUnanswered ? '⚠️ Bỏ qua' : (q.isCorrect ? '✓ Đúng' : '✗ Sai');
+                report += `Câu ${q.questionNumber} [${q.chapter}] ${status}\n`;
+                report += `${q.question}\n\n`;
+                
+                q.options.forEach(opt => {
+                    const prefix = opt.label === q.correctAnswer ? '→' : ' ';
+                    const userMark = opt.label === q.userAnswer ? ' [Bạn chọn]' : '';
+                    const correctMark = opt.label === q.correctAnswer ? ' [Đáp án đúng]' : '';
+                    report += `${prefix} ${opt.label}. ${opt.text}${userMark}${correctMark}\n`;
+                });
+                report += `\n${'─'.repeat(60)}\n\n`;
+            });
+            
+            // Download as text file
+            const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `KetQua_${dateStr}_${timeStr}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            sounds.click();
+            showNotification('✓ Đã lưu kết quả vào file!');
+        }
+        
+        function exportResultJSON() {
+            if (!window.currentResult) {
+                alert('Không có kết quả để lưu!');
+                return;
+            }
+            
+            const result = window.currentResult;
+            const date = new Date(result.date);
+            const dateStr = date.toLocaleDateString('vi-VN').replace(/\//g, '-');
+            const timeStr = date.toLocaleTimeString('vi-VN').replace(/:/g, '-');
+            
+            // Download as JSON
+            const json = JSON.stringify(result, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `KetQua_${dateStr}_${timeStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            sounds.click();
+            showNotification('✓ Đã lưu kết quả JSON!');
+        }
+
+        // Load used exam sets from localStorage
+        function loadUsedSets() {
+            const savedSets = JSON.parse(localStorage.getItem('usedExamSets') || '[]');
+            savedSets.forEach(setId => usedQuestionSets.add(setId));
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadDarkMode();
+            loadUsedSets();
+            
+            if (typeof quizData !== 'undefined') {
+                const questionsWithAnswers = quizData.filter(q => q.correctAnswer);
+                if (questionsWithAnswers.length < 60) {
+                    alert(`Chỉ có ${questionsWithAnswers.length} câu hỏi có đáp án.`);
+                }
+                initQuiz(false);
+            } else {
+                alert('Lỗi: Không thể tải dữ liệu câu hỏi.');
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (quizSubmitted) return;
+            
+            if (e.key === 'ArrowLeft') previousQuestion();
+            else if (e.key === 'ArrowRight') nextQuestion();
+            else if (e.key >= '1' && e.key <= '4') {
+                const options = ['A', 'B', 'C', 'D'];
+                selectAnswer(options[parseInt(e.key) - 1]);
+            } else if (e.key.toLowerCase() === 'm') toggleMark();
+        });
+
+        // Prevent accidental page close
+        window.addEventListener('beforeunload', (e) => {
+            if (!quizSubmitted && Object.values(answers).some(a => a !== null)) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>

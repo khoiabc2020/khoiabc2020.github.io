@@ -1,0 +1,10 @@
+﻿Trying to extract from other chapters for reference...
+Chuong 2: 120 answers
+
+Created template file: chuong1_answers_template.json
+Please manually fill in the correct answers.
+
+Alternatively, if you have the answer key, you can:
+1. Take a photo of the answer section
+2. Manually type the answers
+3. Use OCR tools to extract from images

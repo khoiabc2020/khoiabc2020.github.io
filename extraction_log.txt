@@ -1,0 +1,28 @@
+Starting extraction...
+Processing: Chương 1.pdf
+  Found 97 questions
+Processing: chương 2.pdf
+  Found 120 questions
+Processing: chương 3.pdf
+  Found 149 questions
+Processing: chương 4 .pdf
+  Found 150 questions
+Processing: chương 5.pdf
+  Found 148 questions
+Processing: chương 6.pdf
+  Found 150 questions
+Processing: CHƯƠNG 7.pdf
+  Found 150 questions
+
+Total questions: 964
+
+Created data.js with 964 questions
+
+Statistics by chapter:
+  Chương 1: 97 questions
+  Chương 2: 120 questions
+  Chương 3: 149 questions
+  Chương 4: 150 questions
+  Chương 5: 148 questions
+  Chương 6: 150 questions
+  Chương 7: 150 questions

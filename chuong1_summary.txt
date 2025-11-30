@@ -1,0 +1,12 @@
+
+==================================================
+SUMMARY:
+Total questions: 21
+Questions with answers: 21
+Questions without answers: 0
+
+First question preview:
+ID: Chuong 1_Q11
+Question: Tá an duy tâm sang duy vật của C.Mác? A. "Tình cảnh nước Anh". B. "Góp phần phê phán triết học pháp ...
+Options: 4
+Answer: B

@@ -1,0 +1,16 @@
+﻿Da trich xuat mau text
+
+=== MOT PHAN NOI DUNG ===
+python : Traceback (most recent call last):
+At C:\Users\LE HUY KHOI\AppData\Local\Temp\ps-script-b40d8c42-030e-4800-9c41-33febc372071.ps1:82 char:1
++ python extract_pdf_text.py 2>&1 | Out-File -Encoding utf8 output.txt; ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\cnxh\extract_pdf_text.py", line 38, in <module>
+    print(sample_text[:1000].encode('utf-8', errors='ignore').decode('utf-8', errors='ignore'))
+  File "C:\Users\LE HUY KHOI\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u1ed8' in position 1: character maps to <undefined>
